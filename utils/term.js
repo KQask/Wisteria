@@ -10,7 +10,7 @@ class Term {
         const headers = {
             "accept": "application/json",
             "accept-language": "en-US,en;q=0.9",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         };
 
         const url = `https://reg-prod.ec.fhda.edu/StudentRegistrationSsb/ssb/classSearch/getTerms?searchTerm=&offset=1&max=100&_=${Date.now()}`;
@@ -61,5 +61,5 @@ module.exports = Term;
     https://github.com/mljoshi/fhda-schedule-viewer/
 
     https://github.com/aandrewduong/veil-v2
-    for most of the boiler plate code for this.
+    for most of the boiler plate code for term.js
 */

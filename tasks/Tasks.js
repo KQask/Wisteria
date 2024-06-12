@@ -17,7 +17,7 @@ class Auth_Session {
 
         this.Attempts = 0;
         this.headers = {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "content-type": "application/x-www-form-urlencoded",
             "accept": "*/*",
             "accept-language": "en-US,en;q=0.9", 
@@ -85,7 +85,6 @@ class Auth_Session {
             });
             this.SAMLResponse = $('input[name="SAMLResponse"]').val();
             this.RelayState = $('input[name="RelayState"]').val()
-            console.log(this.RelayState);
 
         } catch (err) {
             console.log("Error submitting login. Error: ", err);
@@ -112,8 +111,6 @@ class Auth_Session {
 
         this.RelayState = $("input[name='RelayState']").attr("value");
         this.SAMLResponse = $("input[name='SAMLResponse']").attr("value");
-            
-        console.log(this.RelayState);
 
         } catch (err) {
             console.log("Error submitting Common Auth: ", err);
@@ -198,7 +195,7 @@ class Registration extends Auth_Session{
 */
 
 
-    async GetRegistrationStatus(Term_Season) {
+    async GetRegistrationStatus(Term_Season, Term_Year) {
         console.log("Unique session id: ", this.uniqueSessionId);
         const response = await request.get("https://ssb-prod.ec.fhda.edu/PROD/fhda_regstatus.P_RenderPage", {
             headers:this.headers
@@ -206,8 +203,8 @@ class Registration extends Auth_Session{
         const $ = cheerio.load(response);
         $('li').each((index, element) => {
             const liText = $(element).text();
-            if (liText.includes('2024')) {
-                if (liText.includes(Term_Season)) {
+            if (liText.includes(Term_Year)) {
+                if ((liText.toLowerCase()).includes(Term_Season.toLowerCase())) {
                     let parts = liText.split(' - ');
                     console.log('Found: ', parts[0]);
                     console.log('Registration time:', parts[1]);
@@ -215,11 +212,15 @@ class Registration extends Auth_Session{
                     this.register_time = dateTime;
                     let term_info = new Term;
                     this.termID = term_info.buildTermId(parts[0]);
-                    console.log(this.register_time);
                     console.log("TermId:", this.termID);
                 }
             }
         });
+        if (this.termID == 0) {
+            console.log("Failed to find Registration Window, are you sure it is available?");
+            process.exit();
+        }
+
     }
 
     
@@ -242,7 +243,6 @@ class Registration extends Auth_Session{
     async VisitClassRegistration() {
         try {
             const response = await request.head("https://reg-prod.ec.fhda.edu/StudentRegistrationSsb/ssb/classRegistration/classRegistration", {headers:this.headers});
-            console.log(response);
         } catch (err) {
             console.log("Error visiting class reg :)")
         }
@@ -312,16 +312,6 @@ class Registration extends Auth_Session{
         console.log("All CRNs added successfully.");
     }
 
-
-    async CreateSession(Choice, Term_Season) {
-        await this.init();
-        await this.GetRegistration();
-        await this.SubmitSAMLSSO();
-        await this.SubmitSSB();
-
-    }
-
-
     async GetAuthentication() {
         try {
             const response = await request.get("https://reg-prod.ec.fhda.edu/StudentRegistrationSsb/login/authAjax", {headers:this.headers});
@@ -339,27 +329,34 @@ class Registration extends Auth_Session{
     }
 
 
-    async runProcess(Choice, Term_Season) {
+    async CreateSession() {
+        await this.init();
+        await this.GetRegistration();
+        await this.SubmitSAMLSSO();
+        await this.SubmitSSB();
+
+    }
+
+    async UpdateSession(Choice, Term_Season, Term_Year) {
         if (!await this.GetAuthentication()) {
-            console.log("Starting!");
-            await this.CreateSession(Choice, Term_Season);
-            await this.GetRegistrationStatus(Term_Season);
+            console.log("Generating a New Session.");
+            await this.CreateSession();
+            await this.GetRegistrationStatus(Term_Season, Term_Year);
             await this.VisitRegistration();
             await this.VisitClassRegistration();
         } else {
-            console.log("Already authenticated");
+            console.log("Authenticated.");
         }
     }
 
-    async start(Choice, Term_Season) {
-        await this.runProcess(Choice, Term_Season);
+    async start(Choice, Term_Season, Term_Year) {
+        await this.UpdateSession(Choice, Term_Season, Term_Year);
         const now = new Date();
         const targetTime = new Date(this.register_time);
-
+        console.log(Term_Year);
         setInterval(async () => {
-            await this.runProcess(Choice, Term_Season);
+            await this.UpdateSession(Choice, Term_Season, Term_Year);
         }, 1 * 60 * 1000);
-//      1 * 60 * 1000
 
         if (now < targetTime) {
             const timeDifference = targetTime.getTime() - now.getTime();
@@ -367,7 +364,7 @@ class Registration extends Auth_Session{
                 await this.AddCRNs();
             }, timeDifference);
         } else {
-            console.log("Executing addCRNS immediately as targetTime is in the past");
+            console.log("Executing addCRNS");
             await this.AddCRNs();
         }
     }

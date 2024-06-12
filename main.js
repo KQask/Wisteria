@@ -2,7 +2,6 @@ const Auth = require("./tasks/Tasks");
 const fs = require("fs")
 const  { Worker } = require('worker_threads');
 
-const worker = new Worker('./tasks/workers.js');
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -50,8 +49,9 @@ async function main () {
             password = Registration_Info.Password;
             CRNs = Registration_Info.CRNs;
             let attempt = 0;
-            // Send registration information to the worker thread
-            worker.postMessage({ action: 'start', Choice: "Register", Term_Season:"Summer", username, password, CRNs });
+            
+            const worker = new Worker('./tasks/workers.js');
+            worker.postMessage({ action: 'start', Choice: "Register", Term_Season:"Fall", Term_Year: "2024", username, password, CRNs });
             while(true) {
                 await sleep(1000);
                 console.log("new message from main thread! Attempt: ", attempt++);
